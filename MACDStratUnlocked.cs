@@ -27,7 +27,6 @@ namespace NinjaTrader.NinjaScript.Strategies
 {
 	public class MACDStratUnlocked : Strategy
 	{
-		// Declare the MACD and SMA variables
 		private MACD macd;
 		private SMA sma200;
 
@@ -35,59 +34,58 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{
 			if (State == State.SetDefaults)
 			{
-				Description									= @"Enter the description for your new custom Strategy here.";
-				Name										= "MACDStratUnlocked";
-				Calculate									= Calculate.OnBarClose;
-				EntriesPerDirection							= 1;
-				EntryHandling								= EntryHandling.AllEntries;
-				IsExitOnSessionCloseStrategy				= true;
-				ExitOnSessionCloseSeconds					= 30;
-				IsFillLimitOnTouch							= false;
-				MaximumBarsLookBack							= MaximumBarsLookBack.TwoHundredFiftySix;
-				OrderFillResolution							= OrderFillResolution.Standard;
-				Slippage									= 0;
-				StartBehavior								= StartBehavior.WaitUntilFlat;
-				TimeInForce									= TimeInForce.Gtc;
-				TraceOrders									= false;
-				RealtimeErrorHandling						= RealtimeErrorHandling.StopCancelClose;
-				StopTargetHandling							= StopTargetHandling.PerEntryExecution;
-				BarsRequiredToTrade							= 20;
-				IsInstantiatedOnEachOptimizationIteration	= true;
-				
-				FastPeriod					= 12;
-				SlowPeriod					= 26;
-				SignalPeriod				= 9;
-				SmaPeriod					= 200; // Added SMA period
+				Description = @"Enter the description for your new custom Strategy here.";
+				Name = "MACDStratUnlocked";
+				Calculate = Calculate.OnBarClose;
+				EntriesPerDirection = 1;
+				EntryHandling = EntryHandling.AllEntries;
+				IsExitOnSessionCloseStrategy = true;
+				ExitOnSessionCloseSeconds = 30;
+				IsFillLimitOnTouch = false;
+				MaximumBarsLookBack = MaximumBarsLookBack.TwoHundredFiftySix;
+				OrderFillResolution = OrderFillResolution.Standard;
+				Slippage = 0;
+				StartBehavior = StartBehavior.WaitUntilFlat;
+				TimeInForce = TimeInForce.Gtc;
+				TraceOrders = false;
+				RealtimeErrorHandling = RealtimeErrorHandling.StopCancelClose;
+				StopTargetHandling = StopTargetHandling.PerEntryExecution;
+				BarsRequiredToTrade = 20;
+				IsInstantiatedOnEachOptimizationIteration = true;
+
+				FastPeriod = 12;
+				SlowPeriod = 26;
+				SignalPeriod = 9;
+				SmaPeriod = 200;
+				StopLossTicks = 10; // Default stop loss of 10 ticks
+				TakeProfitTicks = 20; // Default take profit of 20 ticks
 			}
 			else if (State == State.Configure)
 			{
-				// Initialize the MACD indicator with parameters
 				macd = MACD(FastPeriod, SlowPeriod, SignalPeriod);
 				AddChartIndicator(macd);
-				
-				// Initialize the 200-period SMA
+
 				sma200 = SMA(SmaPeriod);
 				AddChartIndicator(sma200);
+
+				SetStopLoss(CalculationMode.Ticks, StopLossTicks);
+				SetProfitTarget(CalculationMode.Ticks, TakeProfitTicks); // Set the take profit
 			}
 		}
 
 		protected override void OnBarUpdate()
 		{
-			if (BarsInProgress != 0) 
+			if (BarsInProgress != 0)
 				return;
-			
-			// Check if RTH
+
 			bool MarketOpen = ToTime(Time[0]) >= 090000 && ToTime(Time[0]) <= 145000;
 
-			// MACD Cross
 			bool HasCrossedAbove = CrossAbove(macd.Default, macd.Avg, 1);
 			bool HasCrossedBelow = CrossBelow(macd.Default, macd.Avg, 1);
-			
-			// Check if price is above or below the 200-period SMA
+
 			bool PriceAboveSMA = Close[0] > sma200[0];
 			bool PriceBelowSMA = Close[0] < sma200[0];
-			
-			// Enter Positions
+
 			if (MarketOpen)
 			{
 				if (HasCrossedAbove && PriceAboveSMA)
@@ -99,7 +97,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 					EnterShort(Convert.ToInt32(DefaultQuantity), "");
 				}
 			}
-			
+
 			if (!MarketOpen)
 			{
 				ExitLong();
@@ -110,27 +108,33 @@ namespace NinjaTrader.NinjaScript.Strategies
 		#region Properties
 		[NinjaScriptProperty]
 		[Range(1, int.MaxValue)]
-		[Display(Name="FastPeriod", Order=1, GroupName="Parameters")]
-		public int FastPeriod
-		{ get; set; }
+		[Display(Name = "FastPeriod", Order = 1, GroupName = "Parameters")]
+		public int FastPeriod { get; set; }
 
 		[NinjaScriptProperty]
 		[Range(1, int.MaxValue)]
-		[Display(Name="SlowPeriod", Order=2, GroupName="Parameters")]
-		public int SlowPeriod
-		{ get; set; }
-		
+		[Display(Name = "SlowPeriod", Order = 2, GroupName = "Parameters")]
+		public int SlowPeriod { get; set; }
+
 		[NinjaScriptProperty]
 		[Range(1, int.MaxValue)]
-		[Display(Name="SignalPeriod", Order=3, GroupName="Parameters")]
-		public int SignalPeriod
-		{ get; set; }
-		
+		[Display(Name = "SignalPeriod", Order = 3, GroupName = "Parameters")]
+		public int SignalPeriod { get; set; }
+
 		[NinjaScriptProperty]
 		[Range(1, int.MaxValue)]
-		[Display(Name="SmaPeriod", Order=4, GroupName="Parameters")]
-		public int SmaPeriod
-		{ get; set; }
+		[Display(Name = "SmaPeriod", Order = 4, GroupName = "Parameters")]
+		public int SmaPeriod { get; set; }
+
+		[NinjaScriptProperty]
+		[Range(1, double.MaxValue)]
+		[Display(Name = "Stop Loss (ticks)", Order = 5, GroupName = "Parameters")]
+		public double StopLossTicks { get; set; }
+
+		[NinjaScriptProperty]
+		[Range(1, double.MaxValue)]
+		[Display(Name = "Take Profit (ticks)", Order = 6, GroupName = "Parameters")]
+		public double TakeProfitTicks { get; set; }
 		#endregion
 	}
 }
