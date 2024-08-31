@@ -29,6 +29,7 @@ namespace NinjaTrader.NinjaScript.Strategies
     {
         private MACD macd;
         private SMA sma200;
+		private SMA volumeSMA;
         private DateTime lastPositionExitTime;
 		
 
@@ -62,6 +63,8 @@ namespace NinjaTrader.NinjaScript.Strategies
                 StopLossTicks = 20;
                 TakeProfitTicks = 40;
                 CooldownMinutes = 10;
+				VolumeSMA_Period = 50;
+				VolumeMultiplier = 1.0;
 
                 // Initialize lastPositionExitTime to the first bar's time
                 lastPositionExitTime = DateTime.MinValue;
@@ -77,6 +80,12 @@ namespace NinjaTrader.NinjaScript.Strategies
 
                 SetStopLoss(CalculationMode.Ticks, StopLossTicks);
                 SetProfitTarget(CalculationMode.Ticks, TakeProfitTicks);
+
+				// Volume SMA setup
+                volumeSMA = SMA(Volume, VolumeSMA_Period);
+                volumeSMA.Panel = 1;  // Assuming the volume indicator is in Panel 1
+                volumeSMA.Plots[0].Brush = Brushes.Blue; // Change color as needed
+                AddChartIndicator(volumeSMA);
             }
         }
 
@@ -85,7 +94,7 @@ namespace NinjaTrader.NinjaScript.Strategies
             if (BarsInProgress != 0)
                 return;
 
-            bool MarketOpen = ToTime(Time[0]) >= 090000 && ToTime(Time[0]) <= 145000;
+            bool MarketOpen = ToTime(Time[0]) >= 090000 && ToTime(Time[0]) <= 140000;
 
             bool HasCrossedAbove = CrossAbove(macd.Default, macd.Avg, 1);
             bool HasCrossedBelow = CrossBelow(macd.Default, macd.Avg, 1);
@@ -95,17 +104,19 @@ namespace NinjaTrader.NinjaScript.Strategies
 
             bool cooldownElapsed = Time[0] >= lastPositionExitTime.AddMinutes(CooldownMinutes);
 
+			bool volumeConditionMet = Volume[0] > volumeSMA[0] * VolumeMultiplier;
+
             if (MarketOpen)
             {
                 if (cooldownElapsed)
                 {
 					Print("Trading resumed at " + Time[0]);
-                    if (HasCrossedAbove && PriceAboveSMA)
+                    if (HasCrossedAbove && PriceAboveSMA && volumeConditionMet)
                     {
                         EnterLong(Convert.ToInt32(DefaultQuantity), "");
 						Print("Entered long at " + Time[0]);
                     }
-                    else if (HasCrossedBelow && PriceBelowSMA)
+                    else if (HasCrossedBelow && PriceBelowSMA && volumeConditionMet)
                     {
                         EnterShort(Convert.ToInt32(DefaultQuantity), "");
 						Print("Entered short at " + Time[0]);
@@ -173,6 +184,16 @@ namespace NinjaTrader.NinjaScript.Strategies
         [Range(1, int.MaxValue)]
         [Display(Name = "Cooldown (minutes)", Order = 7, GroupName = "Parameters")]
         public int CooldownMinutes { get; set; }
+
+		[NinjaScriptProperty]
+        [Range(1, int.MaxValue)]
+        [Display(Name = "Volume SMA Period", Order = 8, GroupName = "Parameters")]
+        public int VolumeSMA_Period { get; set; }
+        
+		[NinjaScriptProperty]
+        [Range(0.1, double.MaxValue)]
+        [Display(Name = "Volume Multiplier", Order = 9, GroupName = "Parameters")]
+        public double VolumeMultiplier { get; set; }
         #endregion
     }
 }
