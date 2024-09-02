@@ -29,9 +29,11 @@ namespace NinjaTrader.NinjaScript.Strategies
     {
         private MACD macd;
         private SMA sma200;
-		private SMA volumeSMA;
+        private SMA volumeSMA;
         private DateTime lastPositionExitTime;
-		
+        private int numberOfTradesToday;
+        private DateTime currentTradingDay;
+
 
         protected override void OnStateChange()
         {
@@ -63,12 +65,16 @@ namespace NinjaTrader.NinjaScript.Strategies
                 StopLossTicks = 20;
                 TakeProfitTicks = 40;
                 CooldownMinutes = 10;
-				VolumeSMA_Period = 50;
-				VolumeMultiplier = 1.0;
+                VolumeSMA_Period = 50;
+                VolumeMultiplier = 1.0;
+                MaxTradesPerDay = 3;
 
-                // Initialize lastPositionExitTime to the first bar's time
+
                 lastPositionExitTime = DateTime.MinValue;
-                Print("Initialized lastPositionExitTime: " + lastPositionExitTime);
+                currentTradingDay = DateTime.MinValue;
+                numberOfTradesToday = 0;
+
+
             }
             else if (State == State.Configure)
             {
@@ -81,7 +87,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                 SetStopLoss(CalculationMode.Ticks, StopLossTicks);
                 SetProfitTarget(CalculationMode.Ticks, TakeProfitTicks);
 
-				// Volume SMA setup
+                // Volume SMA setup
                 volumeSMA = SMA(Volume, VolumeSMA_Period);
                 volumeSMA.Panel = 1;  // Assuming the volume indicator is in Panel 1
                 volumeSMA.Plots[0].Brush = Brushes.Blue; // Change color as needed
@@ -94,6 +100,19 @@ namespace NinjaTrader.NinjaScript.Strategies
             if (BarsInProgress != 0)
                 return;
 
+            // Check if the trading day has changed
+            if (currentTradingDay.Date != Time[0].Date)
+            {
+                currentTradingDay = Time[0].Date;
+                numberOfTradesToday = 0; // Reset trade count for the new day
+            }
+
+            if (numberOfTradesToday >= MaxTradesPerDay)
+            {
+                Print("Max trades per day limit reached. No more trades will be executed today.");
+                return; // Exit the method if the max trade limit has been reached
+            }
+
             bool MarketOpen = ToTime(Time[0]) >= 090000 && ToTime(Time[0]) <= 140000;
 
             bool HasCrossedAbove = CrossAbove(macd.Default, macd.Avg, 1);
@@ -104,22 +123,22 @@ namespace NinjaTrader.NinjaScript.Strategies
 
             bool cooldownElapsed = Time[0] >= lastPositionExitTime.AddMinutes(CooldownMinutes);
 
-			bool volumeConditionMet = Volume[0] > volumeSMA[0] * VolumeMultiplier;
+            bool volumeConditionMet = Volume[0] > volumeSMA[0] * VolumeMultiplier;
 
             if (MarketOpen)
             {
                 if (cooldownElapsed)
                 {
-					Print("Trading resumed at " + Time[0]);
+                    Print("Trading resumed at " + Time[0]);
                     if (HasCrossedAbove && PriceAboveSMA && volumeConditionMet)
                     {
                         EnterLong(Convert.ToInt32(DefaultQuantity), "");
-						Print("Entered long at " + Time[0]);
+                        Print("Entered long at " + Time[0]);
                     }
                     else if (HasCrossedBelow && PriceBelowSMA && volumeConditionMet)
                     {
                         EnterShort(Convert.ToInt32(DefaultQuantity), "");
-						Print("Entered short at " + Time[0]);
+                        Print("Entered short at " + Time[0]);
                     }
                 }
                 else
@@ -144,6 +163,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                 {
                     Draw.ArrowUp(this, "Exit" + orderId, true, 0, price + 20, Brushes.Yellow);
                     lastPositionExitTime = Time[0]; // Update the last position exit time to the current bar's time
+                    numberOfTradesToday++;
                     Print("Updated lastPositionExitTime to: " + lastPositionExitTime);
                 }
             }
@@ -185,15 +205,21 @@ namespace NinjaTrader.NinjaScript.Strategies
         [Display(Name = "Cooldown (minutes)", Order = 7, GroupName = "Parameters")]
         public int CooldownMinutes { get; set; }
 
-		[NinjaScriptProperty]
+        [NinjaScriptProperty]
         [Range(1, int.MaxValue)]
         [Display(Name = "Volume SMA Period", Order = 8, GroupName = "Parameters")]
         public int VolumeSMA_Period { get; set; }
-        
-		[NinjaScriptProperty]
+
+        [NinjaScriptProperty]
         [Range(0.1, double.MaxValue)]
         [Display(Name = "Volume Multiplier", Order = 9, GroupName = "Parameters")]
         public double VolumeMultiplier { get; set; }
+
+        [NinjaScriptProperty]
+        [Range(1, int.MaxValue)]
+        [Display(Name = "Max Trades Per Day", Order = 10, GroupName = "Parameters")]
+        public int MaxTradesPerDay { get; set; }
+
         #endregion
     }
 }
