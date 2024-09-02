@@ -93,6 +93,10 @@ namespace NinjaTrader.NinjaScript.Strategies
                 volumeSMA.Plots[0].Brush = Brushes.Blue; // Change color as needed
                 AddChartIndicator(volumeSMA);
             }
+            else if (State == State.Realtime)
+            {
+                Share("DiscordShareService", "Strategy started at " + Time[0]);
+            }
         }
 
         protected override void OnBarUpdate()
@@ -115,8 +119,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 
             bool MarketOpen = ToTime(Time[0]) >= 090000 && ToTime(Time[0]) <= 140000;
 
-            bool HasCrossedAbove = CrossAbove(macd.Default, macd.Avg, 1);
-            bool HasCrossedBelow = CrossBelow(macd.Default, macd.Avg, 1);
+            bool HasCrossedAbove = macd.Default[0] > macd.Avg[0];
+            bool HasCrossedBelow = macd.Default[0] < macd.Avg[0];
+            
+            // bool HasCrossedAbove = CrossAbove(macd.Default, macd.Avg, 1);
+            // bool HasCrossedBelow = CrossBelow(macd.Default, macd.Avg, 1);
 
             bool PriceAboveSMA = Close[0] > sma200[0];
             bool PriceBelowSMA = Close[0] < sma200[0];
@@ -134,11 +141,13 @@ namespace NinjaTrader.NinjaScript.Strategies
                     {
                         EnterLong(Convert.ToInt32(DefaultQuantity), "");
                         Print("Entered long at " + Time[0]);
+                        Share("DiscordShareService", "Entered long at " + Time[0]);
                     }
                     else if (HasCrossedBelow && PriceBelowSMA && volumeConditionMet)
                     {
                         EnterShort(Convert.ToInt32(DefaultQuantity), "");
                         Print("Entered short at " + Time[0]);
+                        Share("DiscordShareService", "Entered short at " + Time[0]);
                     }
                 }
                 else
@@ -165,6 +174,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                     lastPositionExitTime = Time[0]; // Update the last position exit time to the current bar's time
                     numberOfTradesToday++;
                     Print("Updated lastPositionExitTime to: " + lastPositionExitTime);
+                    Share("DiscordShareService", "Exited position at " + Time[0]);
                 }
             }
         }
