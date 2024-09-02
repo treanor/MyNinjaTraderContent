@@ -52,8 +52,34 @@ namespace NinjaTrader.NinjaScript.ShareServices
 
 		public override async Task OnAuthorizeAccount()
 		{
-			// No authorization needed for Discord
-			IsConfigured = true;
+			// Assuming DiscordWebhook is a class member or can be accessed here
+			if (string.IsNullOrEmpty(DiscordWebhook))
+			{
+				IsConfigured = false;
+				throw new InvalidOperationException("Webhook URL is not configured.");
+			}
+
+			using (HttpClient client = new HttpClient())
+			{
+				try
+				{
+					HttpResponseMessage response = await client.GetAsync(DiscordWebhook);
+					if (response.IsSuccessStatusCode)
+					{
+						IsConfigured = true;
+					}
+					else
+					{
+						IsConfigured = false;
+						throw new InvalidOperationException("Invalid webhook URL.");
+					}
+				}
+				catch (HttpRequestException)
+				{
+					IsConfigured = false;
+					throw new InvalidOperationException("Error validating webhook URL.");
+				}
+			}
 		}
 
 		public override async Task OnShare(string text, string imgFilePath)
