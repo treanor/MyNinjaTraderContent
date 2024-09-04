@@ -68,6 +68,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                 VolumeSMA_Period = 50;
                 VolumeMultiplier = 1.0;
                 MaxTradesPerDay = 3;
+                UseTrailingStop = true;
 
 
                 lastPositionExitTime = DateTime.MinValue;
@@ -84,8 +85,15 @@ namespace NinjaTrader.NinjaScript.Strategies
                 sma200 = SMA(SmaPeriod);
                 AddChartIndicator(sma200);
 
-                SetStopLoss(CalculationMode.Ticks, StopLossTicks);
-                SetProfitTarget(CalculationMode.Ticks, TakeProfitTicks);
+                if (UseTrailingStop)
+                {
+                    SetTrailStop(CalculationMode.Ticks, StopLossTicks);
+                }
+                else
+                {
+                    SetStopLoss(CalculationMode.Ticks, StopLossTicks);
+                    SetProfitTarget(CalculationMode.Ticks, TakeProfitTicks);
+                }
 
                 // Volume SMA setup
                 volumeSMA = SMA(Volume, VolumeSMA_Period);
@@ -119,11 +127,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 
             bool MarketOpen = ToTime(Time[0]) >= 090000 && ToTime(Time[0]) <= 140000;
 
-            bool HasCrossedAbove = macd.Default[0] > macd.Avg[0];
-            bool HasCrossedBelow = macd.Default[0] < macd.Avg[0];
-            
-            // bool HasCrossedAbove = CrossAbove(macd.Default, macd.Avg, 1);
-            // bool HasCrossedBelow = CrossBelow(macd.Default, macd.Avg, 1);
+            bool HasCrossedAbove = CrossAbove(macd.Default, macd.Avg, 1);
+            bool HasCrossedBelow = CrossBelow(macd.Default, macd.Avg, 1);
 
             bool PriceAboveSMA = Close[0] > sma200[0];
             bool PriceBelowSMA = Close[0] < sma200[0];
@@ -229,6 +234,10 @@ namespace NinjaTrader.NinjaScript.Strategies
         [Range(1, int.MaxValue)]
         [Display(Name = "Max Trades Per Day", Order = 10, GroupName = "Parameters")]
         public int MaxTradesPerDay { get; set; }
+
+        [NinjaScriptProperty]
+        [Display(Name = "Use Trailing Stop", Order = 11, GroupName = "Parameters")]
+        public bool UseTrailingStop { get; set; }
 
         #endregion
     }
