@@ -27,73 +27,111 @@ namespace NinjaTrader.NinjaScript.Strategies
 {
 	public class TrendFollowUnlocked : Strategy
 	{
+		private SMA shortMAIndicator;
+		private SMA longMAIndicator;
+		private double shortMA;
+		private double longMA;
+
 		protected override void OnStateChange()
 		{
 			if (State == State.SetDefaults)
 			{
-				Description									= @"Enter the description for your new custom Strategy here.";
-				Name										= "TrendFollowUnlocked";
-				Calculate									= Calculate.OnBarClose;
-				EntriesPerDirection							= 1;
-				EntryHandling								= EntryHandling.AllEntries;
-				IsExitOnSessionCloseStrategy				= true;
-				ExitOnSessionCloseSeconds					= 30;
-				IsFillLimitOnTouch							= false;
-				MaximumBarsLookBack							= MaximumBarsLookBack.TwoHundredFiftySix;
-				OrderFillResolution							= OrderFillResolution.Standard;
-				Slippage									= 0;
-				StartBehavior								= StartBehavior.WaitUntilFlat;
-				TimeInForce									= TimeInForce.Gtc;
-				TraceOrders									= false;
-				RealtimeErrorHandling						= RealtimeErrorHandling.StopCancelClose;
-				StopTargetHandling							= StopTargetHandling.PerEntryExecution;
-				BarsRequiredToTrade							= 20;
-				// Disable this property for performance gains in Strategy Analyzer optimizations
-				// See the Help Guide for additional information
-				IsInstantiatedOnEachOptimizationIteration	= true;
-				ShortMAPeriod					= 50;
-				LongMAPeriod					= 200;
-				ATRPeriod					= 1;
-				ATRFactor					= 3;
+				Description = @"Trend-following strategy using moving averages.";
+				Name = "TrendFollowUnlocked";
+				Calculate = Calculate.OnBarClose;
+				EntriesPerDirection = 1;
+				EntryHandling = EntryHandling.AllEntries;
+				IsExitOnSessionCloseStrategy = true;
+				ExitOnSessionCloseSeconds = 30;
+				Slippage = 0;
+				StartBehavior = StartBehavior.WaitUntilFlat;
+				TimeInForce = TimeInForce.Gtc;
+				BarsRequiredToTrade = 20;
+
+				// Parameters for moving averages
+				ShortMAPeriod = 50;
+				LongMAPeriod = 200;
+
+				IsInstantiatedOnEachOptimizationIteration = true;
 			}
 			else if (State == State.Configure)
 			{
+				shortMAIndicator = SMA(ShortMAPeriod);
+				longMAIndicator = SMA(LongMAPeriod);
+
+				// Add the moving average plots
+				AddChartIndicator(shortMAIndicator);
+				AddChartIndicator(longMAIndicator);
+
+			}
+			else if (State == State.DataLoaded)
+			{
+				longMAIndicator.Plots[0].Brush = Brushes.Blue;
+				longMAIndicator.Plots[0].Width = 2;
+				shortMAIndicator.Plots[0].Brush = Brushes.Red;
+				shortMAIndicator.Plots[0].Width = 2;
 			}
 		}
 
 		protected override void OnBarUpdate()
 		{
-			if (BarsInProgress != 0) 
+			if (BarsInProgress != 0 || CurrentBars[0] < BarsRequiredToTrade)
 				return;
 
-			
+			bool MarketOpen = ToTime(Time[0]) >= 090000 && ToTime(Time[0]) <= 143000;
+
+			// Get current moving average values
+			shortMA = SMA(ShortMAPeriod)[0];
+			longMA = SMA(LongMAPeriod)[0];
+
+
+			if (MarketOpen)
+			{
+				// Detect bullish crossover (short MA crosses above long MA)
+				if (CrossAbove(SMA(ShortMAPeriod), SMA(LongMAPeriod), 1))
+				{
+					if (Position.MarketPosition == MarketPosition.Flat)
+					{
+						EnterLong();
+					}
+					else if (Position.MarketPosition == MarketPosition.Short)
+					{
+						ExitShort();
+						EnterLong();
+					}
+				}
+				// Detect bearish crossover (short MA crosses below long MA)
+				else if (CrossBelow(SMA(ShortMAPeriod), SMA(LongMAPeriod), 1))
+				{
+					if (Position.MarketPosition == MarketPosition.Flat)
+					{
+						EnterShort();
+					}
+					else if (Position.MarketPosition == MarketPosition.Long)
+					{
+						ExitLong();
+						EnterShort();
+					}
+				}
+			}
+			if (!MarketOpen)
+			{
+				ExitLong();
+				ExitShort();
+			}
 		}
 
 		#region Properties
 		[NinjaScriptProperty]
 		[Range(1, int.MaxValue)]
-		[Display(Name="ShortMAPeriod", Order=1, GroupName="Parameters")]
-		public int ShortMAPeriod
-		{ get; set; }
+		[Display(Name = "ShortMA Period", Order = 1, GroupName = "Parameters")]
+		public int ShortMAPeriod { get; set; }
 
 		[NinjaScriptProperty]
 		[Range(1, int.MaxValue)]
-		[Display(Name="LongMAPeriod", Order=2, GroupName="Parameters")]
-		public int LongMAPeriod
-		{ get; set; }
+		[Display(Name = "LongMA Period", Order = 2, GroupName = "Parameters")]
+		public int LongMAPeriod { get; set; }
 
-		[NinjaScriptProperty]
-		[Range(5, int.MaxValue)]
-		[Display(Name="ATRPeriod", Order=3, GroupName="Parameters")]
-		public int ATRPeriod
-		{ get; set; }
-
-		[NinjaScriptProperty]
-		[Range(1, int.MaxValue)]
-		[Display(Name="ATRFactor", Order=4, GroupName="Parameters")]
-		public int ATRFactor
-		{ get; set; }
 		#endregion
-
 	}
 }
