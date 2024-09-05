@@ -29,8 +29,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 	{
 		private SMA shortMAIndicator;
 		private SMA longMAIndicator;
+		private ADX adxIndicator;
 		private double shortMA;
 		private double longMA;
+		private double adxValue;
+		
 
 		protected override void OnStateChange()
 		{
@@ -49,8 +52,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 				BarsRequiredToTrade = 20;
 
 				// Parameters for moving averages
-				ShortMAPeriod = 50;
-				LongMAPeriod = 200;
+				ShortMAPeriod = 85;
+				LongMAPeriod = 160;
+				ADXPeriod = 14;
+				ADXThreshold = 30;
+				
 
 				IsInstantiatedOnEachOptimizationIteration = true;
 			}
@@ -62,7 +68,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 				// Add the moving average plots
 				AddChartIndicator(shortMAIndicator);
 				AddChartIndicator(longMAIndicator);
+				adxIndicator = ADX(ADXPeriod);
 
+				
 			}
 			else if (State == State.DataLoaded)
 			{
@@ -83,12 +91,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 			// Get current moving average values
 			shortMA = SMA(ShortMAPeriod)[0];
 			longMA = SMA(LongMAPeriod)[0];
+			adxValue = adxIndicator[0];
 
 
 			if (MarketOpen)
 			{
 				// Detect bullish crossover (short MA crosses above long MA)
-				if (CrossAbove(SMA(ShortMAPeriod), SMA(LongMAPeriod), 1))
+				if (CrossAbove(SMA(ShortMAPeriod), SMA(LongMAPeriod), 1) && adxValue > ADXThreshold)
 				{
 					if (Position.MarketPosition == MarketPosition.Flat)
 					{
@@ -101,7 +110,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 					}
 				}
 				// Detect bearish crossover (short MA crosses below long MA)
-				else if (CrossBelow(SMA(ShortMAPeriod), SMA(LongMAPeriod), 1))
+				else if (CrossBelow(SMA(ShortMAPeriod), SMA(LongMAPeriod), 1) && adxValue > ADXThreshold)
 				{
 					if (Position.MarketPosition == MarketPosition.Flat)
 					{
@@ -131,6 +140,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 		[Range(1, int.MaxValue)]
 		[Display(Name = "LongMA Period", Order = 2, GroupName = "Parameters")]
 		public int LongMAPeriod { get; set; }
+		
+		[NinjaScriptProperty]
+		[Range(1, int.MaxValue)]
+		[Display(Name = "ADX Period", Order = 3, GroupName = "Parameters")]
+		public int ADXPeriod { get; set; }
+
+		[NinjaScriptProperty]
+		[Range(0, 100)]
+		[Display(Name = "ADX Threshold", Order = 4, GroupName = "Parameters")]
+		public double ADXThreshold { get; set; }
 
 		#endregion
 	}
