@@ -68,7 +68,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                 VolumeSMA_Period = 50;
                 VolumeMultiplier = 1.0;
                 MaxTradesPerDay = 3;
-                UseTrailingStop = true;
+                UseTrailingStop = false;
 
 
                 lastPositionExitTime = DateTime.MinValue;
@@ -125,7 +125,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                 return; // Exit the method if the max trade limit has been reached
             }
 
-            bool MarketOpen = ToTime(Time[0]) >= 090000 && ToTime(Time[0]) <= 140000;
+            bool MarketOpen = ToTime(Time[0]) >= 090000 && ToTime(Time[0]) <= 143000;
 
             bool HasCrossedAbove = CrossAbove(macd.Default, macd.Avg, 1);
             bool HasCrossedBelow = CrossBelow(macd.Default, macd.Avg, 1);
@@ -187,56 +187,56 @@ namespace NinjaTrader.NinjaScript.Strategies
         #region Properties
         [NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name = "FastPeriod", Order = 1, GroupName = "Parameters")]
+        [Display(Name = "FastPeriod", Order = 1, GroupName = "Indicator Parameters")]
         public int FastPeriod { get; set; }
 
         [NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name = "SlowPeriod", Order = 2, GroupName = "Parameters")]
+        [Display(Name = "SlowPeriod", Order = 2, GroupName = "Indicator Parameters")]
         public int SlowPeriod { get; set; }
 
         [NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name = "SignalPeriod", Order = 3, GroupName = "Parameters")]
+        [Display(Name = "SignalPeriod", Order = 3, GroupName = "Indicator Parameters")]
         public int SignalPeriod { get; set; }
 
         [NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name = "SmaPeriod", Order = 4, GroupName = "Parameters")]
+        [Display(Name = "SmaPeriod", Order = 4, GroupName = "Indicator Parameters")]
         public int SmaPeriod { get; set; }
 
         [NinjaScriptProperty]
         [Range(1, double.MaxValue)]
-        [Display(Name = "Stop Loss (ticks)", Order = 5, GroupName = "Parameters")]
+        [Display(Name = "Stop Loss (ticks)", Order = 5, GroupName = "Risk Management Parameters")]
         public double StopLossTicks { get; set; }
 
         [NinjaScriptProperty]
         [Range(1, double.MaxValue)]
-        [Display(Name = "Take Profit (ticks)", Order = 6, GroupName = "Parameters")]
+        [Display(Name = "Take Profit (ticks)", Order = 6, GroupName = "Risk Management Parameters")]
         public double TakeProfitTicks { get; set; }
 
         [NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name = "Cooldown (minutes)", Order = 7, GroupName = "Parameters")]
+        [Display(Name = "Cooldown (minutes)", Order = 7, GroupName = "Risk Management Parameters")]
         public int CooldownMinutes { get; set; }
 
         [NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name = "Volume SMA Period", Order = 8, GroupName = "Parameters")]
+        [Display(Name = "Volume SMA Period", Order = 8, GroupName = "Entry Control Parameters")]
         public int VolumeSMA_Period { get; set; }
 
         [NinjaScriptProperty]
         [Range(0.1, double.MaxValue)]
-        [Display(Name = "Volume Multiplier", Order = 9, GroupName = "Parameters")]
+        [Display(Name = "Volume Multiplier", Order = 9, GroupName = "Entry Control Parameters")]
         public double VolumeMultiplier { get; set; }
 
         [NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name = "Max Trades Per Day", Order = 10, GroupName = "Parameters")]
+        [Display(Name = "Max Trades Per Day", Order = 10, GroupName = "Risk Management Parameters")]
         public int MaxTradesPerDay { get; set; }
 
         [NinjaScriptProperty]
-        [Display(Name = "Use Trailing Stop", Order = 11, GroupName = "Parameters")]
+        [Display(Name = "Use Trailing Stop", Order = 11, GroupName = "Risk Management Parameters")]
         public bool UseTrailingStop { get; set; }
 
         #endregion
