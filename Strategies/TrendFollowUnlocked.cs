@@ -33,7 +33,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		private double shortMA;
 		private double longMA;
 		private double adxValue;
-		
+
 
 		protected override void OnStateChange()
 		{
@@ -51,12 +51,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 				TimeInForce = TimeInForce.Gtc;
 				BarsRequiredToTrade = 20;
 
-				// Parameters for moving averages
+
+				// Optimized parameters
 				ShortMAPeriod = 85;
 				LongMAPeriod = 160;
 				ADXPeriod = 14;
 				ADXThreshold = 30;
-				
+				ProfitTarget = 200;
+				StopLoss = 50;
+
 
 				IsInstantiatedOnEachOptimizationIteration = true;
 			}
@@ -65,12 +68,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 				shortMAIndicator = SMA(ShortMAPeriod);
 				longMAIndicator = SMA(LongMAPeriod);
 
-				// Add the moving average plots
 				AddChartIndicator(shortMAIndicator);
 				AddChartIndicator(longMAIndicator);
 				adxIndicator = ADX(ADXPeriod);
 
-				
+				SetProfitTarget(CalculationMode.Currency, ProfitTarget);
+				SetStopLoss(CalculationMode.Currency, StopLoss);
+
+
 			}
 			else if (State == State.DataLoaded)
 			{
@@ -96,6 +101,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 			if (MarketOpen)
 			{
+				// Retrieve the current account balance
+				double accountBalance = Account.Get(AccountItem.CashValue, Currency.UsDollar);
+				Print("Current Account Balance: " + accountBalance);
 				// Detect bullish crossover (short MA crosses above long MA)
 				if (CrossAbove(SMA(ShortMAPeriod), SMA(LongMAPeriod), 1) && adxValue > ADXThreshold)
 				{
@@ -128,6 +136,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				ExitLong();
 				ExitShort();
 			}
+			Print(SystemPerformance.AllTrades.TradesPerformance.GrossLoss);
 		}
 
 		#region Properties
@@ -140,7 +149,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		[Range(1, int.MaxValue)]
 		[Display(Name = "LongMA Period", Order = 2, GroupName = "Parameters")]
 		public int LongMAPeriod { get; set; }
-		
+
 		[NinjaScriptProperty]
 		[Range(1, int.MaxValue)]
 		[Display(Name = "ADX Period", Order = 3, GroupName = "Parameters")]
@@ -150,6 +159,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 		[Range(0, 100)]
 		[Display(Name = "ADX Threshold", Order = 4, GroupName = "Parameters")]
 		public double ADXThreshold { get; set; }
+
+		[NinjaScriptProperty]
+		[Range(0, double.MaxValue)]
+		[Display(Name = "Profit Target in Dollars", Order = 5, GroupName = "Parameters")]
+		public double ProfitTarget { get; set; }
+
+		[NinjaScriptProperty]
+		[Range(0, double.MaxValue)]
+		[Display(Name = "Stop Loss in Dollars", Order = 6, GroupName = "Parameters")]
+		public double StopLoss { get; set; }
 
 		#endregion
 	}
