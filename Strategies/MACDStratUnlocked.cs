@@ -33,6 +33,8 @@ namespace NinjaTrader.NinjaScript.Strategies
         private DateTime lastPositionExitTime;
         private int numberOfTradesToday;
         private DateTime currentTradingDay;
+        private bool HasCrossedAbove;
+        private bool HasCrossedBelow;
 
 
         protected override void OnStateChange()
@@ -58,6 +60,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                 BarsRequiredToTrade = 20;
                 IsInstantiatedOnEachOptimizationIteration = true;
 
+                // optimized default values
                 FastPeriod = 12;
                 SlowPeriod = 26;
                 SignalPeriod = 9;
@@ -66,9 +69,10 @@ namespace NinjaTrader.NinjaScript.Strategies
                 TakeProfitTicks = 40;
                 CooldownMinutes = 10;
                 VolumeSMA_Period = 50;
-                VolumeMultiplier = 1.0;
+                VolumeMultiplier = 2.5;
                 MaxTradesPerDay = 3;
                 UseTrailingStop = false;
+                TakeActiveTrend = true;
 
 
                 lastPositionExitTime = DateTime.MinValue;
@@ -99,7 +103,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                 volumeSMA = SMA(Volume, VolumeSMA_Period);
                 volumeSMA.Panel = 1;  // Assuming the volume indicator is in Panel 1
                 volumeSMA.Plots[0].Brush = Brushes.Blue; // Change color as needed
-                AddChartIndicator(volumeSMA);
+                // AddChartIndicator(volumeSMA);
             }
             else if (State == State.Realtime)
             {
@@ -127,8 +131,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 
             bool MarketOpen = ToTime(Time[0]) >= 090000 && ToTime(Time[0]) <= 143000;
 
-            bool HasCrossedAbove = CrossAbove(macd.Default, macd.Avg, 1);
-            bool HasCrossedBelow = CrossBelow(macd.Default, macd.Avg, 1);
+            HasCrossedAbove = CrossAbove(macd.Default, macd.Avg, 1);
+            HasCrossedBelow = CrossBelow(macd.Default, macd.Avg, 1);
+
+            if (TakeActiveTrend)
+            {
+                HasCrossedAbove = macd.Default[0] > macd.Avg[0];
+                HasCrossedBelow = macd.Default[0] < macd.Avg[0];
+            }
 
             bool PriceAboveSMA = Close[0] > sma200[0];
             bool PriceBelowSMA = Close[0] < sma200[0];
@@ -187,56 +197,60 @@ namespace NinjaTrader.NinjaScript.Strategies
         #region Properties
         [NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name = "FastPeriod", Order = 1, GroupName = "Indicator Parameters")]
+        [Display(Name = "FastPeriod", Order = 1, GroupName = "Indicator")]
         public int FastPeriod { get; set; }
 
         [NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name = "SlowPeriod", Order = 2, GroupName = "Indicator Parameters")]
+        [Display(Name = "SlowPeriod", Order = 2, GroupName = "Indicator")]
         public int SlowPeriod { get; set; }
 
         [NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name = "SignalPeriod", Order = 3, GroupName = "Indicator Parameters")]
+        [Display(Name = "SignalPeriod", Order = 3, GroupName = "Indicator")]
         public int SignalPeriod { get; set; }
 
         [NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name = "SmaPeriod", Order = 4, GroupName = "Indicator Parameters")]
+        [Display(Name = "SmaPeriod", Order = 4, GroupName = "Indicator")]
         public int SmaPeriod { get; set; }
 
         [NinjaScriptProperty]
         [Range(1, double.MaxValue)]
-        [Display(Name = "Stop Loss (ticks)", Order = 5, GroupName = "Risk Management Parameters")]
+        [Display(Name = "Stop Loss (ticks)", Order = 5, GroupName = "Risk Management")]
         public double StopLossTicks { get; set; }
 
         [NinjaScriptProperty]
         [Range(1, double.MaxValue)]
-        [Display(Name = "Take Profit (ticks)", Order = 6, GroupName = "Risk Management Parameters")]
+        [Display(Name = "Take Profit (ticks)", Order = 6, GroupName = "Risk Management")]
         public double TakeProfitTicks { get; set; }
 
         [NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name = "Cooldown (minutes)", Order = 7, GroupName = "Risk Management Parameters")]
+        [Display(Name = "Cooldown (minutes)", Order = 7, GroupName = "Risk Management")]
         public int CooldownMinutes { get; set; }
 
         [NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name = "Volume SMA Period", Order = 8, GroupName = "Entry Control Parameters")]
+        [Display(Name = "Volume SMA Period", Order = 8, GroupName = "Entry Control")]
         public int VolumeSMA_Period { get; set; }
 
         [NinjaScriptProperty]
         [Range(0.1, double.MaxValue)]
-        [Display(Name = "Volume Multiplier", Order = 9, GroupName = "Entry Control Parameters")]
+        [Display(Name = "Volume Multiplier", Order = 9, GroupName = "Entry Control")]
         public double VolumeMultiplier { get; set; }
 
         [NinjaScriptProperty]
+        [Display(Name = "Take Active Trend", Order = 12, GroupName = "Entry Control")]
+        public bool TakeActiveTrend { get; set; }
+
+        [NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name = "Max Trades Per Day", Order = 10, GroupName = "Risk Management Parameters")]
+        [Display(Name = "Max Trades Per Day", Order = 10, GroupName = "Risk Management")]
         public int MaxTradesPerDay { get; set; }
 
         [NinjaScriptProperty]
-        [Display(Name = "Use Trailing Stop", Order = 11, GroupName = "Risk Management Parameters")]
+        [Display(Name = "Use Trailing Stop", Order = 11, GroupName = "Risk Management")]
         public bool UseTrailingStop { get; set; }
 
         #endregion
