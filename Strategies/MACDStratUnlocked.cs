@@ -103,7 +103,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                 volumeSMA = SMA(Volume, VolumeSMA_Period);
                 volumeSMA.Panel = 1;  // Assuming the volume indicator is in Panel 1
                 volumeSMA.Plots[0].Brush = Brushes.Blue; // Change color as needed
-                // AddChartIndicator(volumeSMA);
+                AddChartIndicator(volumeSMA);
             }
             else if (State == State.Realtime)
             {
