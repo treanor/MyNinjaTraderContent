@@ -87,6 +87,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			else if (State == State.Configure)
 			{
+				_rangeHigh = new Series<double>(this);
+				_rangeLow = new Series<double>(this);
+				_bias = new Series<int>(this);
+				_oppositeClose = new Series<bool>(this);
+				_tookHiLow = new Series<bool>(this);
+				_isLong = new Series<bool>(this);
+				_isShort = new Series<bool>(this);
+				_t_prev = new Series<bool>(this);
+				_t_take = new Series<bool>(this);
+				_t_trade = new Series<bool>(this);
 			}
 		}
 
@@ -100,11 +110,163 @@ namespace NinjaTrader.NinjaScript.Strategies
 			_t_trade[0] = CheckTime(TradeStart, TradeEnd);
 
 			_bias[0] = _bias[1];
+			_oppositeClose[0] = _oppositeClose[1];
+			_tookHiLow[0] = _tookHiLow[1];
+			_isLong[0] = _isLong[1];
+			_isShort[0] = _isShort[1];
 
-			bool canTrade = TookTrade();
+			bool canTrade = TookTrade() == false;
 			
-			SetProfitTarget("", CalculationMode.Ticks, RewardPoints / TickSize);
-			SetStopLoss("", CalculationMode.Ticks, RiskPoints / TickSize);
+			if (UseFixedRR)
+			{
+				SetProfitTarget(CalculationMode.Ticks, RewardPoints / TickSize);
+				SetStopLoss(CalculationMode.Ticks, RiskPoints / TickSize, false);
+			}
+
+			PreviousRange();
+			Reset();
+			TakeRange();
+			if (canTrade)
+			{
+				TradeRange();
+			}
+		}
+
+		private void TradeRange()
+		{
+			if (_t_trade[0])
+			{
+				if (!WaitRetrace1)
+				{
+					_oppositeClose[0] = true;
+				}
+				else
+				{
+					if (_bias[0] == 1 && Close[0] < Open[0])
+					{
+						_oppositeClose[0] = true;
+					}
+					else if (_bias[0] == -1 && Close[0] > Open[0])
+					{
+						_oppositeClose[0] = true;
+					}
+				}
+				if (!WaitRetrace2)
+				{
+					_tookHiLow[0] = true;
+				}
+				else
+				{
+					if (_bias[0] == 1 && Low[0] < Low[1])
+					{
+						_tookHiLow[0] = true;
+					}
+					if (_bias[0] == -1 && High[0] > High[1])
+					{
+						_tookHiLow[0] = true;
+					}
+				}
+				if (CurrentBar > 3)
+				{
+					if (_bias[1] == 1 && Close[0] > High[1] && _oppositeClose[0] && _tookHiLow[0] && !_isLong[0])
+					{
+						_isLong[0] = true;
+						if (UseStopOrders)
+						{
+							EnterLongStopMarket(Convert.ToInt32(DefaultQuantity), High[0], Convert.ToString(CurrentBar) + " Long");
+						}
+						else
+						{
+							EnterLong(Convert.ToInt32(DefaultQuantity), Convert.ToString(CurrentBar) + " Long");
+						}
+						
+					}
+					else if (_bias[1] == -1 && Close[0] < Low[1] && _oppositeClose[0] && _tookHiLow[0] && !_isShort[0])
+					{
+						_isShort[0] = true;
+						if (UseStopOrders)
+						{
+							EnterShortStopMarket(Convert.ToInt32(DefaultQuantity), Low[0], Convert.ToString(CurrentBar) + " Short");
+						}
+						else
+						{
+							EnterShort(Convert.ToInt32(DefaultQuantity), Convert.ToString(CurrentBar) + " Short");
+						}
+						
+					}
+				}
+			}
+			else if (!_t_trade[0] && _t_trade[1])
+			{
+				ExitLong(Convert.ToString(CurrentBar) + " Exit Long", "");
+				ExitShort(Convert.ToString(CurrentBar) + " Exit Short", "");
+			}
+		}
+
+		private void TakeRange()
+		{
+			bool draw = false;
+			if (_t_take[0] && CurrentBar > 3)
+			{
+				if (High[0] > _rangeHigh[0] && _bias[0] == 0)
+				{
+					_bias[0] = 1;
+					draw = true;
+					Draw.ArrowUp(this, Convert.ToString(CurrentBar) + " ArrowUp", true, 0, High[0], Brushes.White);
+				}
+				if (Low[0] < _rangeLow[0] && _bias[0] == 0)
+				{
+					_bias[0] = -1;
+					draw = true;
+					Draw.ArrowDown(this, Convert.ToString(CurrentBar) + " ArrowDown", true, 0, Low[0], Brushes.White);
+				}
+			}
+			else if (!_t_take[0] && _t_take[1] && _bias[0] == 0)
+			{
+				Draw.Text(this, Convert.ToString(CurrentBar) + "NoTrades", "No Trades", 0, High[0]);
+				draw = true;
+			}
+			if (draw)
+			{
+				Draw.Line(this, Convert.ToString(CurrentBar) + "RangeHigh", 20, _rangeHigh[0], 0, _rangeHigh[0], Brushes.Yellow);
+				Draw.Line(this, Convert.ToString(CurrentBar) + "RangeLow", 20, _rangeLow[0], 0, _rangeLow[0], Brushes.Yellow);				
+			}
+		}
+
+		private void Reset()
+		{
+			if (CurrentBar > 3)
+			{
+				if (!_t_trade[0] && _t_trade[1])
+				{
+					_bias[0] = 0;
+					_isLong[0] = false;
+					_isShort[0] = false;
+					_oppositeClose[0] = false;
+					_tookHiLow[0] = false;
+				}
+			}
+				
+		}
+
+		private void PreviousRange()
+		{
+			_rangeHigh[0] = _rangeHigh[1];
+			_rangeLow[0] = _rangeLow[1];
+
+			if (_t_prev[0] && CurrentBar > 3)
+			{
+				if (!_t_prev[1])
+				{
+					_rangeHigh[0] = High[0];
+					_rangeLow[0] = Low[0];
+				}
+				else
+				{
+					_rangeHigh[0] = Math.Max(_rangeHigh[1], High[0]);
+					_rangeLow[0] = Math.Min(_rangeLow[1], Low[0]);
+				}
+			}
 		}
 
 		private bool TookTrade()
@@ -120,7 +282,6 @@ namespace NinjaTrader.NinjaScript.Strategies
 			{
 				trade = true;
 			}
-
 			return trade;
 		}
 
@@ -178,12 +339,12 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{ get; set; }
 
 		[NinjaScriptProperty]
-		[Display(Name="Wait for Retracement", Order=201, GroupName="Strategy")]
+		[Display(Name="Wait for Retracement 1", Order=201, GroupName="Strategy")]
 		public bool WaitRetrace1
 		{ get; set; }
 
 		[NinjaScriptProperty]
-		[Display(Name="Wait for Retracement", Order=202, GroupName="Strategy")]
+		[Display(Name="Wait for Retracement 1", Order=202, GroupName="Strategy")]
 		public bool WaitRetrace2
 		{ get; set; }
 
