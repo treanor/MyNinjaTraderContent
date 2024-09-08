@@ -65,11 +65,11 @@ namespace NinjaTrader.NinjaScript.Strategies
                 SlowPeriod = 26;
                 SignalPeriod = 9;
                 SmaPeriod = 200;
-                StopLossTicks = 20;
+                StopLossTicks = 40;
                 TakeProfitTicks = 40;
                 CooldownMinutes = 10;
-                VolumeSMA_Period = 50;
-                VolumeMultiplier = 2.5;
+                VolumeSMA_Period = 60;
+                VolumeMultiplier = 4;
                 MaxTradesPerDay = 3;
                 UseTrailingStop = false;
                 TakeActiveTrend = true;
@@ -129,7 +129,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                 return; // Exit the method if the max trade limit has been reached
             }
 
-            bool MarketOpen = ToTime(Time[0]) >= 090000 && ToTime(Time[0]) <= 143000;
+            bool MarketOpen = ToTime(Time[0]) >= 090000 && ToTime(Time[0]) <= 113000;
 
             HasCrossedAbove = CrossAbove(macd.Default, macd.Avg, 1);
             HasCrossedBelow = CrossBelow(macd.Default, macd.Avg, 1);
