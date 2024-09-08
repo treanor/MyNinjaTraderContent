@@ -27,19 +27,30 @@ namespace NinjaTrader.NinjaScript.Strategies
 {
 	public class SuperTrendUnlocked : Strategy
 	{
-        private double atrValue;
-        private double superTrendUpper;
-        private double superTrendLower;
-        private double superTrend;
-        private bool isUpTrend;
-        private bool isDownTrend;
-        private Series<double> superTrendSeries;
+		private ATRTrailingStop atrTrailingStop;
+
+		[Range(1, int.MaxValue), NinjaScriptProperty]
+		[Display(Name = "ATR Period", Order = 1, GroupName = "Parameters")]
+		public int AtrPeriod { get; set; }
+
+		[Range(1.0, double.MaxValue), NinjaScriptProperty]
+		[Display(Name = "ATR Multiplier", Order = 2, GroupName = "Parameters")]
+		public double AtrMultiplier { get; set; }
+
+		[NinjaScriptProperty]
+		[Display(Name = "Use Take Profit", Order = 1, GroupName = "Parameters")]
+		public bool UseTakeProfit { get; set; }
+
+		[NinjaScriptProperty]
+		[Range(1, int.MaxValue)]
+		[Display(Name = "Take Profit in Dollars", Order = 2, GroupName = "Parameters")]
+		public double TakeProfit { get; set; }
 
 		protected override void OnStateChange()
 		{
 			if (State == State.SetDefaults)
 			{
-				Description = @"Super Trend strategy based on ATR.";
+				Description = @"Strategy based on ATR Trailing Stop";
 				Name = "SuperTrendUnlocked";
 				Calculate = Calculate.OnBarClose;
 				EntriesPerDirection = 1;
@@ -49,99 +60,88 @@ namespace NinjaTrader.NinjaScript.Strategies
 				IsFillLimitOnTouch = false;
 				MaximumBarsLookBack = MaximumBarsLookBack.TwoHundredFiftySix;
 				OrderFillResolution = OrderFillResolution.Standard;
-				Slippage = 1;
+				Slippage = 0;
 				StartBehavior = StartBehavior.WaitUntilFlat;
 				TimeInForce = TimeInForce.Gtc;
 				TraceOrders = false;
 				RealtimeErrorHandling = RealtimeErrorHandling.StopCancelClose;
 				StopTargetHandling = StopTargetHandling.PerEntryExecution;
 				BarsRequiredToTrade = 20;
-				IsInstantiatedOnEachOptimizationIteration = true;
-				ATRLength = 5;
-				ATRFactor = 3;
+				IsInstantiatedOnEachOptimizationIteration = false;
+				AtrPeriod = 10;
+				AtrMultiplier = 3;
+				UseTakeProfit = false;
+				TakeProfit = 10;
 			}
 			else if (State == State.Configure)
 			{
-				// AddDataSeries(Data.BarsPeriodType, 1); // 1-minute bars for calculations
-				superTrendSeries = new Series<double>(this);
-			}
-			else if (State == State.DataLoaded)
-			{
+				// Instantiate the ATRTrailingStop indicator
+				atrTrailingStop = ATRTrailingStop(AtrPeriod, AtrMultiplier);
+
+				if (UseTakeProfit)
+				{
+					SetProfitTarget(CalculationMode.Currency, TakeProfit);
+				}
 			}
 		}
 
 		protected override void OnBarUpdate()
 		{
-			if (CurrentBar < ATRLength)
+			// Check if BarsInProgress is the primary data series
+			if (BarsInProgress != 0)
 				return;
 
-			// Calculate ATR
-			atrValue = ATR(ATRLength)[0];
+			// Ensure we have enough bars to calculate ATR
+			if (CurrentBar < BarsRequiredToTrade)
+				return;
 
-			// Calculate SuperTrend levels
-			superTrendUpper = High[0] - ATRFactor * atrValue;
-			superTrendLower = Low[0] + ATRFactor * atrValue;
+			bool MarketOpen = ToTime(Time[0]) >= 083000 && ToTime(Time[0]) <= 150000;
 
-			// Determine trend
-			if (Close[0] > superTrendUpper)
+			if (MarketOpen)
 			{
-				if (superTrendLower > superTrendSeries[1])
-					superTrend = superTrendLower;
-				else
-					superTrend = superTrendSeries[1];
-				// superTrend = superTrendLower;
-				isUpTrend = true;
-				isDownTrend = false;
+				// Buy logic: if price crosses above the trailing stop, enter long
+				if (Close[0] > atrTrailingStop.TrailingStop[0])
+				{
+					if (Position.MarketPosition == MarketPosition.Short)
+					{
+						ExitShort();
+					}
+					if (Position.MarketPosition == MarketPosition.Flat)
+					{
+						EnterLong();
+					}
+				}
+				// Sell logic: if price crosses below the trailing stop, enter short
+				else if (Close[0] < atrTrailingStop.TrailingStop[0])
+				{
+					if (Position.MarketPosition == MarketPosition.Long)
+					{
+						ExitLong();
+					}
+					if (Position.MarketPosition == MarketPosition.Flat)
+					{
+						EnterShort();
+					}
+				}
 			}
-			else if (Close[0] < superTrendLower)
+
+			if (!MarketOpen)
 			{
-				if (superTrendUpper < superTrendSeries[1])
-					superTrend = superTrendLower;
-				else
-					superTrend = superTrendSeries[1];
-				// superTrend = superTrendUpper;
-				isUpTrend = false;
-				isDownTrend = true;
+				if (Position.MarketPosition == MarketPosition.Short)
+				{
+					ExitShort();
+				}
+				if (Position.MarketPosition == MarketPosition.Long)
+				{
+					ExitLong();
+				}
 			}
-
-			Print("SuperTrend: " + superTrend);
-			Print("Last SuperTrend: " + superTrendSeries[1]);
-			Print("Close: " + Close[0]);
-			Print("isUpTrend: " + isUpTrend);
-			Print("isDownTrend: " + isDownTrend);
-			
-
-			// Store SuperTrend value
-			superTrendSeries[0] = superTrend;
-
-			// Plotting SuperTrend
-			PlotSuperTrend();
 		}
 
-		private void PlotSuperTrend()
+		private ATRTrailingStop ATRTrailingStop(int period, double multiplier)
 		{
-			// Plot uptrend in green
-			if (isUpTrend)
-			{
-				Draw.Line(this, "UpTrend_" + CurrentBar, false, 1, superTrendSeries[1], 0, superTrend, Brushes.Green, DashStyleHelper.Solid, 2);
-			}
-			// Plot downtrend in red
-			else if (isDownTrend)
-			{
-				Draw.Line(this, "DownTrend_" + CurrentBar, false, 1, superTrendSeries[1], 0, superTrend, Brushes.Red, DashStyleHelper.Solid, 2);
-			}
+			// Get the ATRTrailingStop indicator
+			return ATRTrailingStop(Input, period, multiplier);
 		}
-
-		#region Properties
-		[NinjaScriptProperty]
-		[Range(1, int.MaxValue)]
-		[Display(Name = "ATR Length", Order = 1, GroupName = "Parameters")]
-		public int ATRLength { get; set; }
-
-		[NinjaScriptProperty]
-		[Range(0.01, double.MaxValue)]
-		[Display(Name = "ATR Factor", Order = 2, GroupName = "Parameters")]
-		public double ATRFactor { get; set; }
-		#endregion
 	}
 }
