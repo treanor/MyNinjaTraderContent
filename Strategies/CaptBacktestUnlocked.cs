@@ -119,8 +119,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 			
 			if (UseFixedRR)
 			{
-				SetProfitTarget(CalculationMode.Ticks, RewardPoints / TickSize, false);
-				// SetStopLoss(CalculationMode.Ticks, RiskPoints / TickSize, false);
+				SetProfitTarget("", CalculationMode.Ticks, RewardPoints / TickSize, false);
+				SetStopLoss("", CalculationMode.Ticks, RiskPoints / TickSize, false);
 			}
 
 			PreviousRange();
